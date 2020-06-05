@@ -1,0 +1,23 @@
+.menuBar {
+    -fx-background-color: #97CEF9;
+}
+
+.grid {
+    -fx-background-color: beige;
+    -fx-background-insets: 0, 1 1 0 0 ;
+    -fx-padding: 1 ;
+}
+
+
+.gridCell {
+    -fx-font-size: 15px;
+    -fx-underline: true;
+}
+
+.background {
+    -fx-background-color: beige;
+}
+
+.combo-box {
+    -fx-pref-width: 150px;
+}

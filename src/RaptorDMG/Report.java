@@ -1,114 +1,162 @@
+/*
+  Name: Stephen Wallace
+  Program: CCCP Stock Management for Graded Unit 2
+  Date of last modification: 23/04/20
+ */
+
 package RaptorDMG;
 
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.interactive.form.PDAcroForm;
+import javafx.scene.control.Alert;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 public class Report {
-    private final String[] companyDetails = new String[] {
-            "12-14 Street Lane Road",
-            "Sometown",
-            "ST12 3NR",
-            "0123 456 7890",
-            "www.cccp.co.uk",
-            "orders@cccp.co.uk"
-    };
-    private int invoiceNum = 0;
-    private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-    private final LocalDate date = LocalDate.now();
-    private String shippingMethod;
-    private String paymentMethod;
-    private JSONObject customer = new JSONObject();
 
-    public String[] getCompanyDetails() {
-        return companyDetails;
+  //Creates a String Array for the company details
+  private final String[] companyDetails = new String[]{
+      "12-14 Street Lane Road",
+      "Sometown",
+      "ST12 3NR",
+      "0123 456 7890",
+      "www.cccp.co.uk",
+      "orders@cccp.co.uk"
+  };
+
+  //Declares variables used in the class
+  private int invoiceNum = 0;
+  private final DateTimeFormatter dtf = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+  private final LocalDate date = LocalDate.now();
+  private final String shippingMethod;
+  private final String paymentMethod;
+  private final JSONObject customer;
+  private final JSONArray items;
+
+  //Returns the company details
+  public String[] getCompanyDetails() {
+    return companyDetails;
+  }
+
+  //Get the invoice number
+  public int getInvoiceNum() {
+    nextInvoice();
+
+    return invoiceNum;
+  }
+
+  //Gets the next invoice number based on the current one
+  private void nextInvoice() {
+    invoiceNum = getInvoiceNum();
+    invoiceNum++;
+  }
+
+  //Returns the date
+  public LocalDate getDate() {
+    return date;
+  }
+
+  //Returns the shipping method
+  public String getShippingMethod() {
+    return shippingMethod;
+  }
+
+  //Returns the payment method
+  public String getPaymentMethod() {
+    return paymentMethod;
+  }
+
+  /*
+      Constructor for a Report
+   */
+  public Report(JSONObject customer, String shippingMethod, String paymentMethod, JSONArray items) {
+
+    //Assigns passed values to the class variables
+    this.customer = customer;
+    this.shippingMethod = shippingMethod;
+    this.paymentMethod = paymentMethod;
+    this.items = items;
+  }
+
+  //Saves items
+  public void saveItems(JSONObject itemToSave) {
+    items.add(itemToSave);
+  }
+
+  /*
+      Saves a Report
+   */
+  public void saveReport() {
+
+    //Checks if the amount of item is not equal to 0
+    if (items.size() != 0) {
+
+      //Loads the reports JSON
+      JSON reports = new JSON("Reports.json",
+          new String[]{"invoiceNum", "date", "shippingMethod", "paymentMethod", "customerID",
+              "items"});
+
+      //Creates new JSONObject
+      JSONObject report = new JSONObject();
+
+      //Puts data the into the report JSON
+      report.put("invoiceNum", reports.returnArray().size() + 1);
+      report.put("date", date.toString());
+      report.put("shippingMethod", shippingMethod);
+      report.put("paymentMethod", paymentMethod);
+      report.put("customerID", customer.get("custID"));
+      report.put("items", items);
+
+      //Updates the amount of stock left
+      updateStockValue();
+
+      //Adds JSONObject to the end of the JSON file
+      reports.appendJSON("Reports.json", report);
     }
 
-    public int getInvoiceNum() {
-        nextInvoice();
-
-        return invoiceNum;
+    //Displays Alert if no items have been added to the invoice
+    else {
+      Alert noItems = new Alert(Alert.AlertType.ERROR, "No items have been added to the invoice");
+      noItems.show();
     }
+  }
 
-    private void nextInvoice() {
-        invoiceNum = getInvoiceNum();
-        invoiceNum++;
-    }
+  /*
+      Updates the amount of stock after an invoice
+   */
+  private void updateStockValue() {
 
-    public LocalDate getDate() {
-        return date;
-    }
+    //Loads stock file
+    JSON stock = new JSON("Stock.json",
+        new String[]{"itemNum", "itemName", "supplier", "itemUnits", "itemPrice"});
 
-    public String getShippingMethod() {
-        return shippingMethod;
-    }
+    //For each item in the items JSONArray
+    for (int j = 0; j < items.size(); j++) {
 
-    public String getPaymentMethod() {
-        return paymentMethod;
-    }
+      //For each item in the stock JSON
+      for (int i = 0; i < stock.returnArray().size(); i++) {
 
-    public  Report(JSONObject customer, String shippingMethod, String paymentMethod) {
-        this.customer = customer;
-        this.shippingMethod = shippingMethod;
-        this.paymentMethod = paymentMethod;
-    }
+        //JSONObject equals current item from the stock JSON
+        JSONObject tempStockItem = (JSONObject) stock.returnArray().get(i);
 
-    public static void main(String[] args) throws IOException {
-        String[] companyDetails = new String[] {
-                "12-14 Street Lane Road",
-                "Sometown",
-                "ST12 3NR",
-                "0123 456 7890",
-                "www.cccp.co.uk"
-        };
-        int invoiceNum = 1;
-        LocalDate date = LocalDate.now();
-        createInvoice(companyDetails, invoiceNum, date);
-    }
+        //JSONObject equal current item from the items JSONArray
+        JSONObject tempInvoiceItem = (JSONObject) items.get(j);
 
-    private static void createInvoice(String[] companyDetails, int invoiceNum, LocalDate date) throws IOException {
-        PDDocument pdfDocument = PDDocument.load(new File("Abomination.pdf"));
-        PDAcroForm acroform = pdfDocument.getDocumentCatalog().getAcroForm();
+        //Checks if an item from the stock file equals the item from the items JSONArray
+        if (tempStockItem.get("itemNum").equals(tempInvoiceItem.get("itemNum"))) {
 
-        JSONArray currentContents = new JSONArray();
-        JSONParser jsonParser = new JSONParser();
-        try (FileReader reader = new FileReader("Stock.json")) {
-            Object obj = jsonParser.parse(reader);
-            currentContents = (JSONArray) obj;
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
+          //Takes the quantity of items in the JSONArray from the amount of items available in stock
+          int itemQuantity = Integer.valueOf(tempStockItem.get("itemUnits").toString()) - Integer
+              .valueOf(tempInvoiceItem.get("itemUnits").toString());
+
+          //Adds new quantity to Stock item
+          tempStockItem.put("itemUnits", itemQuantity);
         }
 
-        JSONObject temp = (JSONObject) currentContents.get(1);
-
-        acroform.getFields().get(0).setValue(companyDetails[0]);
-        acroform.getFields().get(1).setValue(companyDetails[1]);
-        acroform.getFields().get(2).setValue(companyDetails[2]);
-        acroform.getFields().get(3).setValue(companyDetails[3]);
-        acroform.getFields().get(4).setValue(companyDetails[4]);
-        acroform.getFields().get(5).setValue(String.valueOf(invoiceNum));
-        acroform.getFields().get(6).setValue(date.toString());
-        acroform.getFields().get(7).setValue("Collection");
-        acroform.getFields().get(8).setValue("Cash");
-        acroform.getFields().get(9).setValue(temp.get("ItemNum").toString());
-        acroform.getFields().get(10).setValue(temp.get("ItemName").toString());
-        
-
-        pdfDocument.save("AbominationEdited.pdf");
-        pdfDocument.close();
+        //Saves the stock item to the file with updated quantity
+        stock.saveModification(tempStockItem, "Stock.json", i);
+      }
     }
+  }
 }
